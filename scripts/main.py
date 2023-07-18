@@ -1,11 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import rospy
 from geographic_msgs.msg import GeoPoint
 from geometry_msgs.msg import Point, PoseStamped, Twist
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State, HomePosition
-from mavros_msgs.srv import CommandBool, SetMode
+from mavros_msgs.srv import CommandBool, SetMode, CommandBoolRequest
 from sunrise.msg import WayPoint
 from math import sin, cos, sqrt, pi
 import numpy as np
@@ -74,7 +74,7 @@ class Mission:
 
             if self.current_state.mode != mode:
                 self.set_mode_client(base_mode=0, custom_mode=mode)
-            
+                
             else:
                 break
 
@@ -82,14 +82,18 @@ class Mission:
                 
     def setArm(self):
         rate = rospy.Rate(0.5)
-        while True:
-            if self.current_state.armed is not True:
-                self.arming_client(True)
 
-            else:
-                break
+        arm_cmd = CommandBoolRequest()
+        arm_cmd.value = True
+
+        while(True):
+            if(not self.current_state.armed):
+                if(flight.arming_client.call(arm_cmd).success == True):
+                    rospy.loginfo("Vehicle armed")
+                    break
 
             rate.sleep()
+
 
     def setWayPoints(self):
         self.local_home_position = Point(0, 0, 0)
@@ -265,9 +269,10 @@ if __name__ == '__main__':
         rospy.sleep(1)
         
         flight.setMode("OFFBOARD")
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
         flight.setArm()
+
 
         while not rospy.is_shutdown():
             flight.process()
